@@ -35,6 +35,10 @@
     '''(?i)(example|test|dummy|placeholder|changeme|your[_-]|TODO|FIXME|xxx|\.\.\."|<[A-Z_]+>)''',
     # Ignore lines where the secret was already scrubbed
     '''\*\*\*REMOVED\*\*\*''',
+
+    #ignore Firestore key in app
+    '''***REMOVED***''',
+
   ]
 
 # =============================================================================
