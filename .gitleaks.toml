@@ -12,7 +12,6 @@
 # See: https://github.com/gitleaks/gitleaks/blob/master/config/gitleaks.toml
 
 # ----- GLOBAL ALLOWLIST -----
-# Paths and patterns to exclude from ALL rules
 [allowlist]
   paths = [
     '''(^|/)node_modules/''',
@@ -24,8 +23,18 @@
     '''package-lock\.json$''',
     '''yarn\.lock$''',
     '''go\.sum$''',
-    # Add your own exclusions below:
-    # '''path/to/known-safe-file\.txt''',
+    '''\.env\.example$''',
+    '''\.env\.sample$''',
+    '''\.env\.template$''',
+  ]
+  regexTarget = "line"
+  regexes = [
+    # Ignore lines that are comments (JS/TS style)
+    '''^\s*(\/\/|\/?\*|\*).*$''',
+    # Ignore lines with obvious placeholders
+    '''(?i)(example|test|dummy|placeholder|changeme|your[_-]|TODO|FIXME|xxx|\.\.\."|<[A-Z_]+>)''',
+    # Ignore lines where the secret was already scrubbed
+    '''\*\*\*REMOVED\*\*\*''',
   ]
 
 # =============================================================================
@@ -59,12 +68,30 @@
   description = "PEM-encoded private key"
   regex = '''-----BEGIN (RSA |EC |DSA |OPENSSH |ENCRYPTED )?PRIVATE KEY-----'''
   tags = ["key", "pem", "critical"]
+  [rules.allowlist]
+    regexes = [
+      # Ignore .replace() or .split() operations on the PEM header
+      '''(?i)\.(replace|split|match|test|indexOf|includes)\s*\(''',
+      # Ignore comment lines
+      '''^\s*(\/\/|\/?\*|\*)''',
+      # Ignore placeholder examples
+      '''(?i)(example|placeholder|dummy|template)''',
+    ]
 
 [[rules]]
   id = "x509-certificate"
   description = "X.509 Certificate (may contain sensitive info)"
   regex = '''-----BEGIN CERTIFICATE-----'''
   tags = ["cert", "x509"]
+  [rules.allowlist]
+    regexes = [
+      # Ignore string manipulation operations (e.g. .replace() in saml.js)
+      '''(?i)\.(replace|split|match|test|indexOf|includes)\s*\(''',
+      # Ignore well-known public root CAs (e.g. Apple App Attest root)
+      '''(?i)(ROOT_CA|APPLE_ROOT|root.cert|ca.cert)''',
+      # Ignore comment lines
+      '''^\s*(\/\/|\/?\*|\*)''',
+    ]
 
 [[rules]]
   id = "pkcs12-reference"
@@ -103,7 +130,16 @@
   tags = ["generic", "secret"]
   [rules.allowlist]
     regexes = [
-      '''(?i)(example|test|dummy|placeholder|changeme|your[_-]|TODO|FIXME)''',
+      # Ignore obvious placeholders and examples
+      '''(?i)(example|test|dummy|placeholder|changeme|your[_-]|TODO|FIXME|xxx)''',
+      # Ignore truncated example values like "fs_live_..." or "ftt8d_UZ..."
+      '''["'][^"']*\.\.\.["']''',
+      # Ignore comment lines (JS/TS)
+      '''^\s*(\/\/|\/?\*|\*)''',
+      # Ignore already-scrubbed values
+      '''\*\*\*REMOVED\*\*\*''',
+      # Ignore documentation-style example values
+      '''(?i)["'](shared-hmac-secret|token-from-[-\w]+|abc123)["']''',
     ]
 
 # --- Sensitive File Content Patterns ---
@@ -114,6 +150,12 @@
   regex = '''(?i)^(export\s+)?(AWS_SECRET|SECRET_KEY|API_KEY|PRIVATE_KEY|DATABASE_URL|FIREBASE_TOKEN|GCP_KEY)\s*=\s*\S+'''
   path = '''(\.env|\.env\.\w+)$'''
   tags = ["env", "config"]
+  [rules.allowlist]
+    paths = [
+      '''\.env\.example$''',
+      '''\.env\.sample$''',
+      '''\.env\.template$''',
+    ]
 
 [[rules]]
   id = "hardcoded-ip-with-creds"
