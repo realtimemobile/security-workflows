@@ -1,0 +1,136 @@
+# =============================================================================
+# .gitleaks.toml — Custom Gitleaks Configuration
+# Extends built-in rules with additional detection for:
+#   - GCP service account keys & Firebase configs
+#   - X.509 certificates and private keys (PEM-encoded)
+#   - High-entropy strings in config files
+#   - Sensitive documents and credentials files
+# =============================================================================
+
+[extend]
+# Inherit all 150+ built-in rules (AWS, Azure, GitHub tokens, etc.)
+# See: https://github.com/gitleaks/gitleaks/blob/master/config/gitleaks.toml
+
+# ----- GLOBAL ALLOWLIST -----
+# Paths and patterns to exclude from ALL rules
+[allowlist]
+  paths = [
+    '''(^|/)node_modules/''',
+    '''(^|/)vendor/''',
+    '''(^|/)\.git/''',
+    '''(^|/)dist/''',
+    '''(^|/)build/''',
+    '''\.gitleaks\.toml$''',
+    '''package-lock\.json$''',
+    '''yarn\.lock$''',
+    '''go\.sum$''',
+    # Add your own exclusions below:
+    # '''path/to/known-safe-file\.txt''',
+  ]
+
+# =============================================================================
+# CUSTOM RULES
+# =============================================================================
+
+# --- GCP / Firebase ---
+
+[[rules]]
+  id = "gcp-service-account-key"
+  description = "GCP Service Account JSON Key"
+  regex = '''"type"\s*:\s*"service_account"'''
+  tags = ["gcp", "service-account", "critical"]
+
+[[rules]]
+  id = "gcp-api-key"
+  description = "GCP API Key"
+  regex = '''AIza[0-9A-Za-z\-_]{35}'''
+  tags = ["gcp", "api-key"]
+
+[[rules]]
+  id = "firebase-config-block"
+  description = "Firebase configuration with API key"
+  regex = '''firebaseConfig\s*=?\s*\{[^}]*apiKey\s*[:=]\s*["'][^"']+["']'''
+  tags = ["firebase", "config"]
+
+# --- Private Keys & Certificates (PEM-encoded) ---
+
+[[rules]]
+  id = "pem-private-key"
+  description = "PEM-encoded private key"
+  regex = '''-----BEGIN (RSA |EC |DSA |OPENSSH |ENCRYPTED )?PRIVATE KEY-----'''
+  tags = ["key", "pem", "critical"]
+
+[[rules]]
+  id = "x509-certificate"
+  description = "X.509 Certificate (may contain sensitive info)"
+  regex = '''-----BEGIN CERTIFICATE-----'''
+  tags = ["cert", "x509"]
+
+[[rules]]
+  id = "pkcs12-reference"
+  description = "Reference to PKCS12/PFX file with password"
+  regex = '''(?i)(pkcs12|\.p12|\.pfx).*(?:password|passphrase|pass)\s*[:=]\s*\S+'''
+  tags = ["cert", "pkcs12"]
+
+# --- Database & Connection Strings ---
+
+[[rules]]
+  id = "database-connection-string"
+  description = "Database connection string with credentials"
+  regex = '''(?i)(mongodb(\+srv)?|postgres(ql)?|mysql|mssql|redis|amqp)://[^:]+:[^@]+@[^\s"']+'''
+  tags = ["database", "connection-string", "critical"]
+
+[[rules]]
+  id = "jdbc-connection-string"
+  description = "JDBC connection string with password"
+  regex = '''(?i)jdbc:[a-z]+://[^\s]*password=[^\s&"']+'''
+  tags = ["database", "jdbc"]
+
+# --- JWT & Session Tokens ---
+
+[[rules]]
+  id = "jwt-token"
+  description = "JSON Web Token"
+  regex = '''eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+'''
+  tags = ["jwt", "token"]
+
+# --- High-Entropy Secrets in Config ---
+
+[[rules]]
+  id = "generic-secret-assignment"
+  description = "Generic secret/password/token assignment"
+  regex = '''(?i)(secret|password|passwd|token|api_key|apikey|access_key|auth_token|credentials)\s*[:=]\s*["'][^\s"']{8,}["']'''
+  tags = ["generic", "secret"]
+  [rules.allowlist]
+    regexes = [
+      '''(?i)(example|test|dummy|placeholder|changeme|your[_-]|TODO|FIXME)''',
+    ]
+
+# --- Sensitive File Content Patterns ---
+
+[[rules]]
+  id = "env-file-content"
+  description = "Environment variable with secret value"
+  regex = '''(?i)^(export\s+)?(AWS_SECRET|SECRET_KEY|API_KEY|PRIVATE_KEY|DATABASE_URL|FIREBASE_TOKEN|GCP_KEY)\s*=\s*\S+'''
+  path = '''(\.env|\.env\.\w+)$'''
+  tags = ["env", "config"]
+
+[[rules]]
+  id = "hardcoded-ip-with-creds"
+  description = "IP address with embedded credentials"
+  regex = '''(?i)(https?|ftp)://[^:]+:[^@]+@\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'''
+  tags = ["credentials", "ip"]
+
+# --- Cryptographic Material ---
+
+[[rules]]
+  id = "hex-encoded-secret-key"
+  description = "Hex-encoded key (32+ bytes)"
+  regex = '''(?i)(encryption[_-]?key|aes[_-]?key|hmac[_-]?key|signing[_-]?key)\s*[:=]\s*["']?[0-9a-f]{64,}["']?'''
+  tags = ["crypto", "key"]
+
+[[rules]]
+  id = "base64-private-key"
+  description = "Base64-encoded private key in variable"
+  regex = '''(?i)(private[_-]?key|signing[_-]?key)\s*[:=]\s*["']?[A-Za-z0-9+/]{40,}={0,2}["']?'''
+  tags = ["crypto", "key"]
