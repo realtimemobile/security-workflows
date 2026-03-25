@@ -79,25 +79,6 @@
     ]
 
 [[rules]]
-  id = "x509-certificate"
-  description = "X.509 Certificate (may contain sensitive info)"
-  regex = '''-----BEGIN CERTIFICATE-----'''
-  tags = ["cert", "x509"]
-  [rules.allowlist]
-    paths = [
-      '''lib/saml\.js$''',
-      '''lib/appAttest\.js$''',
-    ]
-    regexes = [
-      # Ignore string manipulation operations (e.g. .replace() in saml.js)
-      '''(?i)\.(replace|split|match|test|indexOf|includes)\s*\(''',
-      # Ignore well-known public root CAs (e.g. Apple App Attest root)
-      '''(?i)(ROOT_CA|APPLE_ROOT|root.cert|ca.cert)''',
-      # Ignore comment lines
-      '''^\s*(\/\/|\/?\*|\*)''',
-    ]
-
-[[rules]]
   id = "pkcs12-reference"
   description = "Reference to PKCS12/PFX file with password"
   regex = '''(?i)(pkcs12|\.p12|\.pfx).*(?:password|passphrase|pass)\s*[:=]\s*\S+'''
