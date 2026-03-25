@@ -84,6 +84,10 @@
   regex = '''-----BEGIN CERTIFICATE-----'''
   tags = ["cert", "x509"]
   [rules.allowlist]
+    paths = [
+      '''lib/saml\.js$''',
+      '''lib/appAttest\.js$''',
+    ]
     regexes = [
       # Ignore string manipulation operations (e.g. .replace() in saml.js)
       '''(?i)\.(replace|split|match|test|indexOf|includes)\s*\(''',
